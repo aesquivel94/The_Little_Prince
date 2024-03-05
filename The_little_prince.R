@@ -1,5 +1,11 @@
 # If is not install
 
+# usethis::create_from_github(
+#   "https://github.com/aesquivel94/The_Little_Prince.git",
+#   destdir = "C:/Users/dria-/OneDrive/Escritorio/Portafolio/book_text/",
+#   fork = FALSE
+# )
+
 # R options
 options(warn = -1, scipen = 999)
 
@@ -33,20 +39,33 @@ leng <- chapter_titles %>% tibble() %>% distinct() %>% dim() %>% .[1]
 
   
 
-Little_prince_clean %>% tibble(text = .) %>% unnest() %>% 
+# Chapters extraction. 
+titles <- Little_prince_clean %>% tibble(text = .) %>% unnest() %>% 
   mutate(row_lenght = Little_prince_clean %>% str_length(.)) %>% 
   dplyr::filter(row_lenght > 0) %>% 
   dplyr::select(text) %>% 
   mutate(row = 1:dim(.[1])) %>% 
   mutate(title = if_else(grepl('Chapter', text) == TRUE, 1, 0)) %>% 
-  filter(title == 1) 
+  filter(title == 1) %>% .[nrow(.),1]
 
 
 
 
-# usethis::create_from_github(
-#   "https://github.com/aesquivel94/The_Little_Prince.git",
-#   destdir = "C:/Users/dria-/OneDrive/Escritorio/Portafolio/book_text/",
-#   fork = FALSE
-# )
+
+# Test ext
+
+data(stop_words)
+
+Little_prince_clean %>% tibble(text = .) %>% unnest() %>% 
+  filter(row_number() > 190) %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)  %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 20) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) +
+  geom_col() +
+  labs(y = NULL)
+
+
 
