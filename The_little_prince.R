@@ -56,16 +56,74 @@ titles <- Little_prince_clean %>% tibble(text = .) %>% unnest() %>%
 
 data(stop_words)
 
-Little_prince_clean %>% tibble(text = .) %>% unnest() %>% 
+tidy_little_prince <- Little_prince_clean %>% 
+  tibble(text = .) %>% 
+  unnest() %>% 
   filter(row_number() > 190) %>%
   unnest_tokens(word, text) %>%
-  anti_join(stop_words)  %>%
+  anti_join(stop_words)  
+
+
+
+
+
+tidy_little_prince %>%
   count(word, sort = TRUE) %>%
   filter(n > 20) %>%
   mutate(word = reorder(word, n)) %>%
   ggplot(aes(n, word)) +
   geom_col() +
-  labs(y = NULL)
+  labs(y = NULL) + 
+  theme_bw()
 
 
+
+# Test scatterplot
+
+frequency <- tidy_little_prince %>% 
+  mutate(word = str_extract(word, "[a-z']+")) %>%
+  count(word) %>%
+  mutate(proportion = n / sum(n)) %>% 
+  select(-n) 
+
+
+
+# Sentiment analysis with tidy data
+
+get_sentiments("afinn")
+get_sentiments("bing")
+get_sentiments("nrc")
+
+
+
+#  Sentiment analysis with inner join
+
+
+
+
+####  ---------------------------=
+# Places
+# Little_prince_clean 
+# https://en.wikipedia.org/wiki/The_Little_Prince
+# tokens <- tibble(line = 1, word = unlist(str_split(Little_prince_clean, "\\s+")))
+
+# Tokenize the text into words
+tokens <- tibble(word = unlist(str_split(Little_prince_clean, "\\s+")))
+
+# Perform word frequency analysis to identify frequently occurring words
+word_freq <- tokens %>%
+  count(word, sort = TRUE)
+
+# Filter out common stopwords
+word_freq_filtered <- word_freq %>%
+  anti_join(stop_words)
+
+# Maybe this should be done by characer?
+
+# Manually review the identified words to filter out irrelevant terms and identify actual place names
+word_freq_filtered %>%
+  filter(word %in% c("planet", "Earth", "Desert", "Asteroid")) %>% 
+  ggplot (aes(x= word, y = n)) +
+  geom_col() +
+  theme_bw()
 
