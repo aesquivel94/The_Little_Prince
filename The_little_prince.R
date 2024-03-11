@@ -99,7 +99,128 @@ get_sentiments("nrc")
 #  Sentiment analysis with inner join
 
 
+nrc_joy <- get_sentiments("nrc") %>% 
+  filter(sentiment == "joy")
 
+# ---Joy
+tidy_little_prince %>% 
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+
+
+# --- Positive or negative words 
+
+Little_prince_sentiment <- tidy_little_prince %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+
+
+#  Frequency 
+bing_word_counts <- tidy_little_prince %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+# Graph
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL) +
+  theme_bw()
+
+# --= 
+custom_stop_words <- bind_rows(tibble(word = c("miss"),  
+                                      lexicon = c("custom")), 
+                               stop_words)
+
+# wordcloud
+
+tidy_little_prince %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+
+# Mix-sentiments
+
+tidy_little_prince %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+
+
+# 2.6 Looking at units beyond just words
+
+p_and_p_sentences <- tibble(text = Little_prince_clean) %>% 
+  unnest_tokens(sentence, text, token = "sentences")
+
+p_and_p_sentences$sentence[2]
+
+
+
+
+
+# =-------------------------------------------
+LP_bigram <- Little_prince_clean %>% 
+  tibble(text = .) %>% 
+  unnest() %>% 
+  filter(row_number() > 190) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  filter(!is.na(bigram))
+
+
+LP_bigram %>%
+  count(bigram, sort = TRUE)
+
+
+
+bigrams_separated <- LP_bigram %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+
+# new bigram counts:
+bigram_counts <- bigrams_filtered %>% 
+  count(word1, word2, sort = TRUE)
+
+bigram_counts
+
+
+
+bigrams_united <- bigrams_filtered %>%
+  unite(bigram, word1, word2, sep = " ")
+
+bigrams_united
+
+
+
+
+# - Trigram
+
+  Little_prince_clean %>% 
+  tibble(text = .) %>% 
+  unnest() %>% 
+  filter(row_number() > 190) %>% 
+  unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
+  filter(!is.na(trigram)) %>%
+  separate(trigram, c("word1", "word2", "word3"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word,
+         !word2 %in% stop_words$word,
+         !word3 %in% stop_words$word) %>%
+  count(word1, word2, word3, sort = TRUE)
 
 ####  ---------------------------=
 # Places
