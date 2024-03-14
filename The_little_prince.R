@@ -1,10 +1,5 @@
-# If is not install
 
-# usethis::create_from_github(
-#   "https://github.com/aesquivel94/The_Little_Prince.git",
-#   destdir = "C:/Users/dria-/OneDrive/Escritorio/Portafolio/book_text/",
-#   fork = FALSE
-# )
+# Loading Packages 
 
 # R options
 options(warn = -1, scipen = 999)
@@ -14,7 +9,9 @@ suppressMessages(if(!require("pacman")) install.packages("pacman"))
 suppressMessages(pacman::p_load(purrr, pdftools, wordcloud, dplyr, reshape2, stringr, textdata, scales, tidytext, tidyr, ggplot2))
 
 
-# Reading
+# 1. Reading and preprocesing data: 
+
+# Reading little prince.
 Little_prince <- pdftools::pdf_text(pdf = "https://andonovicmilica.files.wordpress.com/2018/07/the_little_prince.pdf") %>% 
   readr::read_lines()
 
@@ -24,10 +21,10 @@ Little_prince_clean <- Little_prince %>%
   str_trim()  # Trim leading and trailing whitespaces
 
 
-
-# Print the first few rows
-
+# Little prince as data_frame
 Little_prince_df <- data_frame(Little_prince_clean)
+
+# Identify the little prince chapter titles
 chapter_titles <- Little_prince_df %>%
   str_extract_all("\\bChapter\\s\\d+\\b") %>%
   unlist()
@@ -35,24 +32,45 @@ chapter_titles <- Little_prince_df %>%
 leng <- chapter_titles %>% tibble() %>% distinct() %>% dim() %>% .[1] 
   paste('Chapter', 1:leng)
 
-  length(Little_prince_clean)
+# length(Little_prince_clean) # How many rows has the little prince
 
   
 
-# Chapters extraction. 
-titles <- Little_prince_clean %>% tibble(text = .) %>% unnest() %>% 
-  mutate(row_lenght = Little_prince_clean %>% str_length(.)) %>% 
-  dplyr::filter(row_lenght > 0) %>% 
-  dplyr::select(text) %>% 
-  mutate(row = 1:dim(.[1])) %>% 
-  mutate(title = if_else(grepl('Chapter', text) == TRUE, 1, 0)) %>% 
-  filter(title == 1) %>% .[nrow(.),1]
+# Chapters extraction.
+  
+  Little_prince_clean <- Little_prince_clean %>% 
+    tibble(text = .) %>% 
+    unnest() %>% 
+    filter(row_number() >= which(Little_prince_clean == chapter_titles[1]) ) 
+
+  
+  
+  
+  # Define the title condition function
+  title_condition <- function(text) {
+    grepl("^Chapter", text)  # Example condition: Lines starting with "Chapter" are considered titles
+  } 
+  
+  LP_tiles <-  Little_prince_clean %>%
+    mutate(row_lenght = Little_prince_clean$text %>% str_length(.)) %>% 
+    dplyr::filter(row_lenght > 0) %>% 
+    dplyr::select(text) %>% 
+    mutate(row = 1:dim(.[1])) 
+  
+  
+  # Little prince filter and create the groups
+  tidy_little_prince <- Little_prince_clean %>%
+    tibble(text = .) %>% 
+    unnest() %>% 
+    mutate(row_length = str_length(text)) %>% 
+    filter(row_length > 0) %>% 
+    mutate(Start_chapter = if_else(grepl('Chapter', text), 1, 0)) %>%
+    mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) 
 
 
-
-
-
-# Test ext
+#### Work from here
+# =-------------------------------
+# Stop words 
 
 data(stop_words)
 
