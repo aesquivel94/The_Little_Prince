@@ -65,40 +65,33 @@ leng <- chapter_titles %>% tibble() %>% distinct() %>% dim() %>% .[1]
     mutate(row_length = str_length(text)) %>% 
     filter(row_length > 0) %>% 
     mutate(Start_chapter = if_else(grepl('Chapter', text), 1, 0)) %>%
-    mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) 
+    mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) %>% 
+    filter(!stringr::str_detect(text, 'Chapter') )
 
 
-#### Work from here
+#### 
 # =-------------------------------
 # Stop words 
 
 data(stop_words)
 
-tidy_little_prince <- Little_prince_clean %>% 
-  tibble(text = .) %>% 
-  unnest() %>% 
-  filter(row_number() > 190) %>%
+tidy_little_prince <- tidy_little_prince %>%
   unnest_tokens(word, text) %>%
   anti_join(stop_words)  
 
 
+# =----  Most frequent Words. 
 
-
-
-tidy_little_prince %>%
-  count(word, sort = TRUE) %>%
-  filter(n > 20) %>%
-  mutate(word = reorder(word, n)) %>%
-  ggplot(aes(n, word)) +
-  geom_col() +
-  labs(y = NULL) + 
-  theme_bw()
+tidy_little_prince %>% count(word, sort = TRUE) %>% 
+  filter(n > 15) %>% mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) + geom_col(fill = '#4CA0DB') + 
+  labs(y = NULL) + theme_bw()
 
 
 
 # Test scatterplot
 
-frequency <- tidy_little_prince %>% 
+frequency_LP <- tidy_little_prince %>%
   mutate(word = str_extract(word, "[a-z']+")) %>%
   count(word) %>%
   mutate(proportion = n / sum(n)) %>% 
@@ -108,15 +101,14 @@ frequency <- tidy_little_prince %>%
 
 # Sentiment analysis with tidy data
 
+# Dictionaries
 get_sentiments("afinn")
 get_sentiments("bing")
 get_sentiments("nrc")
 
 
-
+###############################################################
 #  Sentiment analysis with inner join
-
-
 nrc_joy <- get_sentiments("nrc") %>% 
   filter(sentiment == "joy")
 
@@ -126,10 +118,11 @@ tidy_little_prince %>%
   count(word, sort = TRUE)
 
 
-# --- Positive or negative words 
+# --- Positive or negative words by chapter
 
 Little_prince_sentiment <- tidy_little_prince %>%
   inner_join(get_sentiments("bing")) %>%
+  # group_by(Chapter) %>% 
   count(sentiment) %>%
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
   mutate(sentiment = positive - negative)
@@ -174,14 +167,16 @@ tidy_little_prince %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) %>%
   acast(word ~ sentiment, value.var = "n", fill = 0) %>%
-  comparison.cloud(colors = c("gray20", "gray80"),
+  comparison.cloud(colors = c("#D81B60", "#1E88E5"),
                    max.words = 100)
 
 
 # 2.6 Looking at units beyond just words
-
-p_and_p_sentences <- tibble(text = Little_prince_clean) %>% 
-  unnest_tokens(sentence, text, token = "sentences")
+# Start from here. 
+p_and_p_sentences <- Little_prince_clean %>%
+  filter(!stringr::str_detect(text, 'Chapter')) %>% 
+  unnest_tokens(sentence, text, token = "sentences") 
+  
 
 p_and_p_sentences$sentence[2]
 
