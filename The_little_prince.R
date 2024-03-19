@@ -188,7 +188,6 @@ p_and_p_sentences$sentence[2]
 LP_bigram <- Little_prince_clean %>% 
   tibble(text = .) %>% 
   unnest() %>% 
-  filter(row_number() > 190) %>%
   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
   filter(!is.na(bigram))
 
@@ -221,12 +220,12 @@ bigrams_united
 
 
 
-# - Trigram
+# - Trigram --- No useful by now. 
 
   Little_prince_clean %>% 
   tibble(text = .) %>% 
   unnest() %>% 
-  filter(row_number() > 190) %>% 
+  # filter(row_number() > 190) %>% 
   unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
   filter(!is.na(trigram)) %>%
   separate(trigram, c("word1", "word2", "word3"), sep = " ") %>%
@@ -234,7 +233,179 @@ bigrams_united
          !word2 %in% stop_words$word,
          !word3 %in% stop_words$word) %>%
   count(word1, word2, word3, sort = TRUE)
+  
+  
 
+# =----
+  
+  bigram_tf_idf <- bigrams_united %>%
+    count(bigram) %>% 
+    # bind_tf_idf(bigram, n) %>%
+    arrange(desc(n))
+
+  
+  
+  bigrams_separated <- bigrams_united %>%
+    separate(bigram, c("word1", "word2"), sep = " ")
+  
+  bigrams_filtered <- bigrams_separated %>%
+    filter(!word1 %in% stop_words$word) %>%
+    filter(!word2 %in% stop_words$word)
+  
+  # new bigram counts:
+  bigram_counts <- bigrams_filtered %>% 
+    count(word1, word2, sort = TRUE)
+  
+  bigram_counts
+  
+  
+  
+  library(ggraph)
+  set.seed(2017)
+  
+  bigram_graph <- bigram_counts %>%
+    filter(n > 2) %>%
+    influential::graph_from_data_frame()
+  
+  ggraph(bigram_graph, layout = "fr") +
+    geom_edge_link() +
+    geom_node_point() +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+  
+  bigram_graph
+  
+  
+  
+  ggraph(bigram_graph, layout = "fr") +
+    geom_edge_link() +
+    geom_node_point() +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+  
+  
+  # =- 
+  a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+  
+  ggraph(bigram_graph, layout = "fr") +
+    geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                   arrow = a, end_cap = circle(.07, 'inches')) +
+    geom_node_point(color = "lightblue", size = 5) +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+    theme_void()
+  
+  
+  count_bigrams <- function(dataset) {
+    dataset %>%
+      unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+      separate(bigram, c("word1", "word2"), sep = " ") %>%
+      filter(!word1 %in% stop_words$word,
+             !word2 %in% stop_words$word) %>%
+      count(word1, word2, sort = TRUE)
+  }
+  
+  visualize_bigrams <- function(bigrams) {
+    set.seed(2016)
+    a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+    
+    bigrams %>%
+      graph_from_data_frame() %>%
+      ggraph(layout = "fr") +
+      geom_edge_link(aes(edge_alpha = n), show.legend = FALSE, arrow = a) +
+      geom_node_point(color = "lightblue", size = 5) +
+      geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+      theme_void()
+  }
+  
+  
+  
+  
+  # =--------------------------------
+  library(widyr)
+  
+  
+  LP_section_words <- Little_prince_clean %>% 
+    tibble(text = .) %>% 
+    unnest() %>% 
+    mutate(section = row_number() %/% 10) %>%
+    filter(section > 0) %>%
+    unnest_tokens(word, text) %>%
+    filter(!word %in% stop_words$word)
+  
+  # count words co-occuring within sections
+  word_pairs <- LP_section_words %>%
+    pairwise_count(word, section, sort = TRUE)
+  
+  word_pairs
+  
+  
+  word_pairs %>%
+    filter(item1 == "prince")
+  
+  # Correlation
+  
+  word_cors <- LP_section_words %>%
+    group_by(word) %>%
+    filter(n() >= 20) %>%
+    pairwise_cor(word, section, sort = TRUE)
+  
+  word_cors
+  
+  
+  
+  word_cors %>%
+    filter(item1 == "prince")
+  
+  
+  word_cors %>%
+    filter(item1 %in% c("prince", "fox", "flower")) %>%
+    group_by(item1) %>%
+    slice_max(correlation, n = 6) %>%
+    ungroup() %>%
+    mutate(item2 = reorder(item2, correlation)) %>%
+    ggplot(aes(item2, correlation)) +
+    geom_bar(stat = "identity") +
+    facet_wrap(~ item1, scales = "free") +
+    coord_flip()
+  
+  
+  
+  set.seed(2016)
+  
+  word_cors %>%
+    filter(correlation > .1) %>%
+    influential::graph_from_data_frame() %>%
+    ggraph(layout = "fr") +
+    geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
+    geom_node_point(color = "lightblue", size = 5) +
+    geom_node_text(aes(label = name), repel = TRUE) +
+    theme_void()
+  
+  
+  
+  
+  
+  
+  # 5.1 Tidying a document-term matrix
+  
+  ap_td <- tidy_little_prince 
+  ap_td
+  
+  # ap_sentiments <-
+  
+  ap_sentiments <- ap_td %>% 
+    inner_join(get_sentiments("bing"), by = 'word')
+    
+  ap_sentiments %>% mutate(term = word) %>% 
+    count(sentiment, term) %>%
+    # ungroup() %>%
+    filter(n >= 5) %>%
+    mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+    mutate(term = reorder(term, n)) %>%
+    ggplot(aes(n, term, fill = sentiment)) +
+    geom_col() +
+    labs(x = "Contribution to sentiment", y = NULL)
+
+  
+# Ideas:   
 ####  ---------------------------=
 # Places
 # Little_prince_clean 
@@ -261,3 +432,42 @@ word_freq_filtered %>%
   geom_col() +
   theme_bw()
 
+
+
+# =---------- Ideas part 2
+
+# ap_sentiments
+
+
+# word_pairs <- LP_section_words
+
+
+
+# Idea <- word_cors %>%
+#   filter(item1 %in% c("prince", "fox", "flower")) %>%
+#   group_by(item1) %>%
+#   slice_max(correlation, n = 6) %>%
+#   ungroup() %>%
+#   mutate(item2 = reorder(item2, correlation))
+
+
+
+
+
+# Example from https://github.com/ricardo-bion/ggradar
+# library(ggplot2)
+# devtools::install_github("ricardo-bion/ggradar", 
+#                          dependencies = TRUE)
+# library(ggradar)
+# suppressPackageStartupMessages(library(dplyr))
+# library(scales)
+# 
+# mtcars %>%
+#   add_rownames( var = "group" ) %>%
+#   mutate_each(funs(rescale), -group) %>%
+#   tail(4) %>% select(1:10) -> mtcars_radar
+# 
+# ggradar::ggradar(mtcars_radar,
+#                  group.colours = RColorBrewer::brewer.pal(4, 'Set2')) +
+# 
+# knitr::kable(mtcars_radar,format="markdown") 
