@@ -6,10 +6,10 @@ options(warn = -1, scipen = 999)
 
 # Load libraries
 suppressMessages(if(!require("pacman")) install.packages("pacman"))
-suppressMessages(pacman::p_load(purrr, pdftools, wordcloud, dplyr, reshape2, stringr, textdata, scales, tidytext, tidyr, ggplot2))
+suppressMessages(pacman::p_load(purrr, pdftools, wordcloud, dplyr, reshape2, stringr, textdata, scales, tidytext, tidyr, ggplot2, ggraph, widyr))
 
 
-# 1. Reading and preprocesing data: 
+# 1. Reading and pre-procesing data: 
 
 # Reading little prince.
 Little_prince <- pdftools::pdf_text(pdf = "https://andonovicmilica.files.wordpress.com/2018/07/the_little_prince.pdf") %>% 
@@ -17,85 +17,84 @@ Little_prince <- pdftools::pdf_text(pdf = "https://andonovicmilica.files.wordpre
 
 # Preprocess the text data
 Little_prince_clean <- Little_prince %>%
-  str_replace_all("\\s+", " ") %>%  # Remove extra whitespaces
-  str_trim()  # Trim leading and trailing whitespaces
+  str_replace_all("\\s+", " ") %>%  # Remove extra white spaces
+  str_trim()  # Trim leading and trailing white spaces
 
 
-# Little prince as data_frame
-Little_prince_df <- data_frame(Little_prince_clean)
-
+# Erase chapter titles: 
 # Identify the little prince chapter titles
-chapter_titles <- Little_prince_df %>%
+chapter_titles <- data_frame(Little_prince_clean) %>%
   str_extract_all("\\bChapter\\s\\d+\\b") %>%
   unlist()
 
+# Count total chapters
 leng <- chapter_titles %>% tibble() %>% distinct() %>% dim() %>% .[1] 
-  paste('Chapter', 1:leng)
 
-# length(Little_prince_clean) # How many rows has the little prince
 
-  
 
-# Chapters extraction.
-  
-  Little_prince_clean <- Little_prince_clean %>% 
-    tibble(text = .) %>% 
-    unnest() %>% 
-    filter(row_number() >= which(Little_prince_clean == chapter_titles[1]) ) 
+# Remove all of the rows that before the story start.
+Little_prince_clean <- Little_prince_clean %>% 
+  tibble(text = .) %>% 
+  unnest() %>% 
+  filter(row_number() >= which(Little_prince_clean == chapter_titles[1]) ) 
 
   
-  
-  
-  # Define the title condition function
+# Define the title condition function
   title_condition <- function(text) {
     grepl("^Chapter", text)  # Example condition: Lines starting with "Chapter" are considered titles
   } 
   
-  LP_tiles <-  Little_prince_clean %>%
-    mutate(row_lenght = Little_prince_clean$text %>% str_length(.)) %>% 
-    dplyr::filter(row_lenght > 0) %>% 
-    dplyr::select(text) %>% 
-    mutate(row = 1:dim(.[1])) 
+
+# 2. 
+# Little prince filter and create the groups  
+  
+# Little_prince_clean %>% mutate(row_lenght = Little_prince_clean$text %>% str_length(.)) %>% 
+#   dplyr::filter(row_lenght > 0) %>% dplyr::select(text) %>% mutate(row = 1:dim(.[1])) 
   
   
-  # Little prince filter and create the groups
-  tidy_little_prince <- Little_prince_clean %>%
+tidy_little_prince <- Little_prince_clean %>%
     tibble(text = .) %>% 
     unnest() %>% 
+    # mutate(title = if_else(row_number() %in% (1 + which(str_detect(Little_prince_clean$text, 'Chapter')) ), 1, 0)) %>% 
     mutate(row_length = str_length(text)) %>% 
     filter(row_length > 0) %>% 
     mutate(Start_chapter = if_else(grepl('Chapter', text), 1, 0)) %>%
-    mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) %>% 
-    filter(!stringr::str_detect(text, 'Chapter') )
+    mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) %>%
+    filter(!stringr::str_detect(text, 'Chapter') ) %>% 
+    dplyr::select(-Start_chapter)
+
+
+tidy_little_prince <- tidy_little_prince[-which(str_detect(tidy_little_prince$text, "[^0-9]") == FALSE),]
+
 
 
 #### 
 # =-------------------------------
 # Stop words 
-
 data(stop_words)
 
-tidy_little_prince <- tidy_little_prince %>%
+#############################################
+# Grown-ups is the same word. 
+
+tidy_little_prince$text[str_detect(tidy_little_prince$text, "grown-ups") == TRUE] <- "grownups"
+#############################################
+
+
+# Filter words, omitting stop words. 
+tidy_lp <- tidy_little_prince %>%
   unnest_tokens(word, text) %>%
   anti_join(stop_words)  
 
 
 # =----  Most frequent Words. 
-
-tidy_little_prince %>% count(word, sort = TRUE) %>% 
+Freq_grap <- tidy_lp %>% count(word, sort = TRUE) %>% 
   filter(n > 15) %>% mutate(word = reorder(word, n)) %>%
   ggplot(aes(n, word)) + geom_col(fill = '#4CA0DB') + 
-  labs(y = NULL) + theme_bw()
+  labs(y = NULL, x = "Frequency") + 
+  theme_bw()
 
-
-
-# Test scatterplot
-
-frequency_LP <- tidy_little_prince %>%
-  mutate(word = str_extract(word, "[a-z']+")) %>%
-  count(word) %>%
-  mutate(proportion = n / sum(n)) %>% 
-  select(-n) 
+# frequency_LP <- tidy_lp %>%
+  # count(word) %>% mutate(proportion = n / sum(n)) %>%  select(-n) 
 
 
 
@@ -109,18 +108,21 @@ get_sentiments("nrc")
 
 ###############################################################
 #  Sentiment analysis with inner join
-nrc_joy <- get_sentiments("nrc") %>% 
-  filter(sentiment == "joy")
+# -================================ Work from here
 
-# ---Joy
-tidy_little_prince %>% 
-  inner_join(nrc_joy) %>%
-  count(word, sort = TRUE)
+# Sentiment distribution.
+tidy_lp %>% 
+  inner_join(get_sentiments("nrc")) %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(sentiment = reorder(sentiment, n)) %>%
+  ggplot(aes(n, sentiment)) + geom_col(fill = '#4CA0DB') + 
+  labs(y = NULL, x = "Frequency") + 
+  theme_bw()
 
 
 # --- Positive or negative words by chapter
 
-Little_prince_sentiment <- tidy_little_prince %>%
+Little_prince_sentiment <- tidy_lp %>%
   inner_join(get_sentiments("bing")) %>%
   # group_by(Chapter) %>% 
   count(sentiment) %>%
@@ -130,7 +132,7 @@ Little_prince_sentiment <- tidy_little_prince %>%
 
 
 #  Frequency 
-bing_word_counts <- tidy_little_prince %>%
+bing_word_counts <- tidy_lp %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) %>%
   ungroup()
@@ -260,7 +262,7 @@ bigrams_united
   
   
   
-  library(ggraph)
+# =---------------
   set.seed(2017)
   
   bigram_graph <- bigram_counts %>%
@@ -319,8 +321,6 @@ bigrams_united
   
   
   # =--------------------------------
-  library(widyr)
-  
   
   LP_section_words <- Little_prince_clean %>% 
     tibble(text = .) %>% 
