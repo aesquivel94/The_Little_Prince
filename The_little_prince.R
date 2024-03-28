@@ -299,8 +299,6 @@ bigrams_united # How can i use this?
   
   # 5.1 Tidying a document-term matrix
   
-  ap_td <- tidy_lp 
-  
   ap_sentiments <- tidy_lp %>% 
     inner_join(get_sentiments("bing"), by = 'word')
     
@@ -313,9 +311,42 @@ bigrams_united # How can i use this?
     geom_col() +
     scale_fill_brewer(palette = "Accent") + 
     labs(x = "Contribution to sentiment", y = NULL) + theme_bw()
+  
+  
 
   
-# Ideas:   Main focus...
+  
+  ajam <- ap_sentiments %>% mutate(term = word) %>% 
+    count(sentiment, term) %>% #  Chapter,
+    # mutate(Chapter = str_remove(Chapter, 'Chapter') %>% as.numeric() ) %>%
+    # distinct(sentiment , term, n, .keep_all=TRUE) %>%
+    arrange(desc(n)) %>% filter(n > 5)
+    
+  # UpSetR::upset(fromList(ajam),nsets = 10) 
+  
+  # Assuming 'n' is a character vector
+  ajam$term <- as.list(ajam$term)
+  
+  # Plotting with ggplot and scale_x_upset
+  pl <- ggplot(data = ajam, aes(term, n, fill = sentiment)) +
+    geom_bar(stat = "identity") +
+    scale_x_upset(n_intersections = 15) +
+    scale_fill_brewer(palette = "Accent") + 
+    labs(y = "Contribution to sentiment", x = NULL) + 
+    theme_bw() +
+    theme(legend.position = "top")
+  ggsave("C:/Users/dria-/OneDrive/Escritorio/movie_genre_barchart.png", plot = pl)
+  
+  # tidy_movies %>%
+  #   distinct(title, year, length, .keep_all=TRUE) %>%
+  #   ggplot(aes(x=Genres)) +
+  #   geom_bar() + scale_x_upset(n_intersections = 20)
+  
+  
+
+  
+  
+  # Ideas:   Main focus...
 ####  ---------------------------=
 # Places
 # Little_prince_clean 
@@ -323,61 +354,23 @@ bigrams_united # How can i use this?
 # tokens <- tibble(line = 1, word = unlist(str_split(Little_prince_clean, "\\s+")))
 
 # Tokenize the text into words
-tokens <- tibble(word = unlist(str_split(Little_prince_clean, "\\s+")))
+# tokens <- tibble(word = unlist(str_split(Little_prince_clean, "\\s+")))
 
 # Perform word frequency analysis to identify frequently occurring words
-word_freq <- tokens %>%
-  count(word, sort = TRUE)
+# word_freq <- tokens %>%
+#   count(word, sort = TRUE)
 
 # Filter out common stopwords
-word_freq_filtered <- word_freq %>%
-  anti_join(stop_words)
+# word_freq_filtered <- word_freq %>%
+#   anti_join(stop_words)
 
-# Maybe this should be done by characer?
+# Maybe this should be done by character?
 
 # Manually review the identified words to filter out irrelevant terms and identify actual place names
-word_freq_filtered %>%
-  filter(word %in% c("planet", "Earth", "Desert", "Asteroid")) %>% 
-  ggplot (aes(x= word, y = n)) +
-  geom_col(fill = 'lightblue') +
-  theme_bw()
+# word_freq_filtered %>%
+#   filter(word %in% c("planet", "Earth", "Desert", "Asteroid")) %>% 
+#   ggplot (aes(x= word, y = n)) + geom_col(fill = 'lightblue') +
+#   theme_bw()
 
+# =-----------
 
-
-# =---------- Ideas part 2
-
-# ap_sentiments
-
-
-# word_pairs <- LP_section_words
-
-
-
-# Idea <- word_cors %>%
-#   filter(item1 %in% c("prince", "fox", "flower")) %>%
-#   group_by(item1) %>%
-#   slice_max(correlation, n = 6) %>%
-#   ungroup() %>%
-#   mutate(item2 = reorder(item2, correlation))
-
-
-
-
-
-# Example from https://github.com/ricardo-bion/ggradar
-# library(ggplot2)
-# devtools::install_github("ricardo-bion/ggradar", 
-#                          dependencies = TRUE)
-# library(ggradar)
-# suppressPackageStartupMessages(library(dplyr))
-# library(scales)
-# 
-# mtcars %>%
-#   add_rownames( var = "group" ) %>%
-#   mutate_each(funs(rescale), -group) %>%
-#   tail(4) %>% select(1:10) -> mtcars_radar
-# 
-# ggradar::ggradar(mtcars_radar,
-#                  group.colours = RColorBrewer::brewer.pal(4, 'Set2')) +
-# 
-# knitr::kable(mtcars_radar,format="markdown") 
