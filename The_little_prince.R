@@ -52,15 +52,15 @@ Little_prince_clean <- Little_prince_clean %>%
 tidy_little_prince <- Little_prince_clean %>%
     tibble(text = .) %>% 
     unnest() %>% 
-    # mutate(title = if_else(row_number() %in% (1 + which(str_detect(Little_prince_clean$text, 'Chapter')) ), 1, 0)) %>% 
     mutate(row_length = str_length(text)) %>% 
     filter(row_length > 0) %>% 
     mutate(Start_chapter = if_else(grepl('Chapter', text), 1, 0)) %>%
     mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) %>%
     filter(!stringr::str_detect(text, 'Chapter') ) %>% 
     dplyr::select(-Start_chapter) %>%
+    mutate(text = str_to_lower(text)) %>% 
     mutate(text = str_replace_all(text, c("grown ups" = "grownUps" , "grown-ups" = "grownUps", "little prince" = "littlePrince",
-                                          "boa constrictor" = "boaConstrictor")))
+                                          "boa" = "boaConstrictor", 'constrictor' = '')))
 
 
 tidy_little_prince <- tidy_little_prince[-which(str_detect(tidy_little_prince$text, "[^0-9]") == FALSE),]
@@ -78,18 +78,22 @@ data(stop_words)
 # Filter words, omitting stop words. 
 tidy_lp <- tidy_little_prince %>%
   unnest_tokens(word, text) %>%
-  anti_join(stop_words)  
+  anti_join(stop_words) %>%
+  mutate(word = ifelse(str_detect(word,'boa'), 'boaconstrictor', word)) 
 
 
 # =----  Most frequent Words. 
-Freq_grap <- tidy_lp %>% count(word, sort = TRUE) %>% 
-  filter(n > 15) %>% mutate(word = reorder(word, n)) %>%
+# Freq_grap <- 
+tidy_lp %>% 
+  count(word, sort = TRUE) %>%
+  filter(n > 15) %>%
+  mutate(word = reorder(word, n)) %>%
   ggplot(aes(n, word)) + geom_col(fill = '#4CA0DB') + 
   labs(y = NULL, x = "Frequency") + 
-  theme_bw()
+  theme_bw() +
+  geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
 
-# frequency_LP <- tidy_lp %>%
-  # count(word) %>% mutate(proportion = n / sum(n)) %>%  select(-n) 
+ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_grap.png", plot = pl)
 
 
 
