@@ -31,7 +31,6 @@ chapter_titles <- data_frame(Little_prince_clean) %>%
 leng <- chapter_titles %>% tibble() %>% distinct() %>% dim() %>% .[1] 
 
 
-
 # Remove all of the rows that before the story start.
 Little_prince_clean <- Little_prince_clean %>% 
   tibble(text = .) %>% 
@@ -48,9 +47,6 @@ Little_prince_clean <- Little_prince_clean %>%
 # 2. 
 # Little prince filter and create the groups  
   
-# Little_prince_clean %>% mutate(row_lenght = Little_prince_clean$text %>% str_length(.)) %>% 
-#   dplyr::filter(row_lenght > 0) %>% dplyr::select(text) %>% mutate(row = 1:dim(.[1])) 
-  
 # Maybe i need to replace the boa constrictor word too. 
 # Maybe join Rose and Flowers?
 tidy_little_prince <- Little_prince_clean %>%
@@ -63,7 +59,8 @@ tidy_little_prince <- Little_prince_clean %>%
     mutate(Chapter = paste0('Chapter ', cumsum(Start_chapter)) ) %>%
     filter(!stringr::str_detect(text, 'Chapter') ) %>% 
     dplyr::select(-Start_chapter) %>%
-    mutate(text = str_replace_all(text, c("grown ups" = "grownups" , "grown-ups" = "grownups", "little prince" = "littleprince")))
+    mutate(text = str_replace_all(text, c("grown ups" = "grownUps" , "grown-ups" = "grownUps", "little prince" = "littlePrince",
+                                          "boa constrictor" = "boaConstrictor")))
 
 
 tidy_little_prince <- tidy_little_prince[-which(str_detect(tidy_little_prince$text, "[^0-9]") == FALSE),]
