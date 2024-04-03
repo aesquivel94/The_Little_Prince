@@ -83,8 +83,7 @@ tidy_lp <- tidy_little_prince %>%
 
 
 # =----  Most frequent Words. 
-# Freq_grap <- 
-tidy_lp %>% 
+pl <- tidy_lp %>% 
   count(word, sort = TRUE) %>%
   filter(n > 15) %>%
   mutate(word = reorder(word, n)) %>%
@@ -110,16 +109,19 @@ get_sentiments("nrc")
 # -================================ Work from here
 
 # Sentiment distribution.
-tidy_lp %>% 
+pl <- tidy_lp %>% 
   inner_join(get_sentiments("nrc")) %>%
   count(sentiment, sort = TRUE) %>% 
   mutate(sentiment = reorder(sentiment, n)) %>%
   ggplot(aes(n, sentiment)) + geom_col(fill = '#4CA0DB') + 
   labs(y = NULL, x = "Frequency") + 
-  theme_bw()
+  theme_bw() +
+  geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
+
+ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_type.png", plot = pl)
 
 
-# --- Positive or negative words in the story.
+# --- Positive or negative words in the story - table.
 Little_prince_sentiment <- tidy_lp %>%
   inner_join(get_sentiments("bing")) %>%
   count(sentiment) %>%
@@ -128,13 +130,13 @@ Little_prince_sentiment <- tidy_lp %>%
 
 
 
-#  Frequency 
+#  Frequency of positive an negative sentiments in relation with words.
 bing_word_counts <- tidy_lp %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) %>%
   ungroup()
 
-# Graph
+# Graph of negative and positive words. Spliting by sentiment types. 
 Pos_neg_cont <- bing_word_counts %>%
   group_by(sentiment) %>%
   slice_max(n, n = 10) %>% 
@@ -144,24 +146,20 @@ Pos_neg_cont <- bing_word_counts %>%
   geom_col(show.legend = FALSE) +
   scale_fill_brewer(palette = "Blues") + 
   facet_wrap(~sentiment, scales = "free_y") +
-  labs(x = "Contribution to sentiment",
-       y = NULL) +
-  theme_bw()
+  labs(x = "Contribution to sentiment", y = NULL) +
+  theme_bw()  +
+  geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
 
-# --= 
-custom_stop_words <- bind_rows(tibble(word = c("miss"),  
-                                      lexicon = c("custom")), 
-                               stop_words)
-
-# wordcloud Simple
-tidy_lp %>%
-  anti_join(stop_words) %>%
-  count(word) %>%
-  with(wordcloud(word, n, max.words = 50))
+ggsave("C:/Users/dria-/OneDrive/Escritorio/PN_count.png", plot = Pos_neg_cont)
 
 
-# Positive and negative Sentiments
-Neg_Pos_WC <- tidy_lp %>%
+# wordcloud Simple with not sentiments involve. 
+tidy_lp %>% anti_join(stop_words) %>%
+  count(word) %>% with(wordcloud(word, n, max.words = 50))
+
+
+# worldcloud with positive and negative Sentiments.
+pl <- tidy_lp %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) %>%
   acast(word ~ sentiment, value.var = "n", fill = 0) %>%
@@ -169,209 +167,197 @@ Neg_Pos_WC <- tidy_lp %>%
                    title.colors=c("#D81B60", "#1E88E5"),
                    max.words = 100, title.size=2.5)
 
+ggsave("C:/Users/dria-/OneDrive/Escritorio/WorldCloud_s.png", plot = pl)
+
 
 # 2.6 Looking at units beyond just words
-
-LP_bigram <- tidy_little_prince %>% 
-  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
-  filter(!is.na(bigram))
-
-
-LP_bigram %>%  count(bigram, sort = TRUE)
-
-bigrams_separated <- LP_bigram %>%
-  separate(bigram, c("word1", "word2"), sep = " ")
-
-bigrams_filtered <- bigrams_separated %>%
-  filter(!word1 %in% stop_words$word) %>%
-  filter(!word2 %in% stop_words$word)
-
-# new bigram counts:
-bigram_counts <- bigrams_filtered %>% 
-  count(word1, word2, sort = TRUE)
-
-bigrams_united <- bigrams_filtered %>%
-  unite(bigram, word1, word2, sep = " ")
-
-bigrams_united # How can i use this?
-
-
-
-
-# Maybe erase this part - Trigram --- No useful by now. 
-  # tidy_little_prince %>% 
-  # unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
-  # filter(!is.na(trigram)) %>%
-  # separate(trigram, c("word1", "word2", "word3"), sep = " ") %>%
-  # filter(!word1 %in% stop_words$word,
-  #        !word2 %in% stop_words$word,
-  #        !word3 %in% stop_words$word) %>%
-  # count(word1, word2, word3, sort = TRUE)
-  
-  
-
-# =----
-  
-  bigram_tf_idf <- bigrams_united %>%
-    count(bigram) %>% 
-    arrange(desc(n))
-
-  bigrams_separated <- bigrams_united %>%
-    separate(bigram, c("word1", "word2"), sep = " ")
-  
-  bigrams_filtered <- bigrams_separated %>%
-    filter(!word1 %in% stop_words$word) %>%
-    filter(!word2 %in% stop_words$word)
-  
-  # new bigram counts:
-  bigram_counts <- bigrams_filtered %>% 
-    count(word1, word2, sort = TRUE)
-  
-  bigram_counts
-  
-  
-  
-# =---------------
-  # set.seed(2017)
-  # 
-  # bigram_graph <- bigram_counts %>%
-  #   filter(n > 2) %>%
-  #   influential::graph_from_data_frame()
-  # 
-  # a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
-  # 
-  # ggraph(bigram_graph, layout = "fr") +
-  #   geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
-  #                  arrow = a, end_cap = circle(.07, 'inches')) +
-  #   geom_node_point(color = "lightblue", size = 5) +
-  #   geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
-  #   theme_void()
-  
+# LP_bigram <- tidy_little_prince %>%
+#   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+#   filter(!is.na(bigram))
+# LP_bigram %>%  count(bigram, sort = TRUE)
+# bigrams_separated <- LP_bigram %>% separate(bigram, c("word1", "word2"), sep = " ")
+# bigrams_filtered <- bigrams_separated %>%
+#   filter(!word1 %in% stop_words$word) %>% filter(!word2 %in% stop_words$word)
+# # new bigram counts:
+# bigram_counts <- bigrams_filtered %>% count(word1, word2, sort = TRUE)
+# bigrams_united <- bigrams_filtered %>% unite(bigram, word1, word2, sep = " ")
+# # =----
+# bigram_tf_idf <- bigrams_united %>% count(bigram) %>% arrange(desc(n))
+# bigrams_separated <- bigrams_united %>% separate(bigram, c("word1", "word2"), sep = " ")
+# bigrams_filtered <- bigrams_separated %>%
+#     filter(!word1 %in% stop_words$word) %>% filter(!word2 %in% stop_words$word)
+# # new bigram counts:
+# bigram_counts <- bigrams_filtered %>% count(word1, word2, sort = TRUE)
   
 
   
-  # =--------------------------------
-  # Working from here
-  # =--------------------------------
+# =--------------------------------
+# Working from here
+# =--------------------------------
   
-  LP_section_words <- tidy_little_prince %>%
-    mutate(section = row_number() %/% 10) %>%
-    filter(section > 0) %>%
-    unnest_tokens(word, text) %>%
-    filter(!word %in% stop_words$word)
+LP_section_words <- tidy_little_prince %>%
+  mutate(section = row_number() %/% 10) %>%
+  filter(section > 0) %>%
+  unnest_tokens(word, text) %>%
+  filter(!word %in% stop_words$word)  
   
-  # count words co-occuring within sections
-  word_pairs <- LP_section_words %>%
-    pairwise_count(word, section, sort = TRUE)
+# count words co-occuring within sections
+word_pairs <- LP_section_words %>%
+  pairwise_count(word, section, sort = TRUE)  
 
+# Correlation
+word_cors <- LP_section_words %>%
+  group_by(word) %>%
+  filter(n() >= 20) %>%
+  pairwise_cor(word, section, sort = TRUE)  
   
-  # Correlation
-  word_cors <- LP_section_words %>%
-    group_by(word) %>%
-    filter(n() >= 20) %>%
-    pairwise_cor(word, section, sort = TRUE)
+# word_cors %>%
+#   filter(item1 %in% c("littleprince", "fox", "flower")) %>%
+#   group_by(item1) %>%
+#   slice_max(correlation, n = 6) %>%
+#   ungroup() %>%
+#   mutate(item2 = reorder(item2, correlation)) %>%
+#   ggplot(aes(item2, correlation)) +
+#   geom_bar(stat = "identity", fill = 'lightblue') +
+#   facet_wrap(~ item1, scales = "free") +
+#   coord_flip() + theme_bw()  
   
-  word_cors %>%
-    filter(item1 %in% c("littleprince", "fox", "flower")) %>%
-    group_by(item1) %>%
-    slice_max(correlation, n = 6) %>%
-    ungroup() %>%
-    mutate(item2 = reorder(item2, correlation)) %>%
-    ggplot(aes(item2, correlation)) +
-    geom_bar(stat = "identity", fill = 'lightblue') +
-    facet_wrap(~ item1, scales = "free") +
-    coord_flip() + theme_bw()
-  
-  
-  # Correlation graph
-  set.seed(2016)
-  
-  word_cors %>%
-    filter(correlation > .1) %>%
-    influential::graph_from_data_frame() %>%
-    ggraph(layout = "fr") +
-    geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
-    geom_node_point(color = "lightblue", size = 5) +
-    geom_node_text(aes(label = name), repel = TRUE) +
-    theme_void()
-  
+# Correlation graph
+# set.seed(2016)
+# 
+# word_cors %>%
+#   filter(correlation > 0.1) %>%
+#   influential::graph_from_data_frame() %>%
+#   ggraph(layout = "fr") +
+#   geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
+#   geom_node_point(color = "lightblue", size = 5) +
+#   geom_node_text(aes(label = name), repel = TRUE) +
+#   theme_void()  
   
 
-  
-  # 5.1 Tidying a document-term matrix
-  
-  ap_sentiments <- tidy_lp %>% 
-    inner_join(get_sentiments("bing"), by = 'word')
-    
-  ap_sentiments %>% mutate(term = word) %>% 
-    count(sentiment, term) %>%
-    filter(n >= 5) %>%
-    mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
-    mutate(term = reorder(term, n)) %>%
-    ggplot(aes(n, term, fill = sentiment)) +
-    geom_col() +
-    scale_fill_brewer(palette = "Accent") + 
-    labs(x = "Contribution to sentiment", y = NULL) + theme_bw()
-  
-  
+# 5.1 Tidying a document-term matrix
 
-  
-  
-  ajam <- ap_sentiments %>% mutate(term = word) %>% 
-    count(sentiment, term) %>% #  Chapter,
-    # mutate(Chapter = str_remove(Chapter, 'Chapter') %>% as.numeric() ) %>%
-    # distinct(sentiment , term, n, .keep_all=TRUE) %>%
-    arrange(desc(n)) %>% filter(n > 5)
-    
-  # UpSetR::upset(fromList(ajam),nsets = 10) 
-  
-  # Assuming 'n' is a character vector
-  ajam$term <- as.list(ajam$term)
-  
-  # Plotting with ggplot and scale_x_upset
-  pl <- ggplot(data = ajam, aes(term, n, fill = sentiment)) +
-    geom_bar(stat = "identity") +
-    scale_x_upset(n_intersections = 15) +
-    scale_fill_brewer(palette = "Accent") + 
-    labs(y = "Contribution to sentiment", x = NULL) + 
-    theme_bw() +
-    theme(legend.position = "top")
-  ggsave("C:/Users/dria-/OneDrive/Escritorio/movie_genre_barchart.png", plot = pl)
-  
-  # tidy_movies %>%
-  #   distinct(title, year, length, .keep_all=TRUE) %>%
-  #   ggplot(aes(x=Genres)) +
-  #   geom_bar() + scale_x_upset(n_intersections = 20)
-  
-  
+ap_sentiments <- tidy_lp %>% 
+  inner_join(get_sentiments("bing"), by = 'word')
 
-  
-  
-  # Ideas:   Main focus...
-####  ---------------------------=
-# Places
-# Little_prince_clean 
-# https://en.wikipedia.org/wiki/The_Little_Prince
-# tokens <- tibble(line = 1, word = unlist(str_split(Little_prince_clean, "\\s+")))
+pl <- ap_sentiments %>% mutate(term = word) %>% 
+  count(sentiment, term) %>%
+  filter(n >= 5) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(term = reorder(term, n)) %>%
+  ggplot(aes(n, term, fill = sentiment)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Accent") + 
+  labs(x = "Frequency", y = NULL) + theme_bw() +
+  geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
 
-# Tokenize the text into words
-# tokens <- tibble(word = unlist(str_split(Little_prince_clean, "\\s+")))
+ggsave("C:/Users/dria-/OneDrive/Escritorio/WorldCloud_s.png", plot = pl)
 
-# Perform word frequency analysis to identify frequently occurring words
-# word_freq <- tokens %>%
-#   count(word, sort = TRUE)
 
-# Filter out common stopwords
-# word_freq_filtered <- word_freq %>%
-#   anti_join(stop_words)
 
-# Maybe this should be done by character?
 
-# Manually review the identified words to filter out irrelevant terms and identify actual place names
-# word_freq_filtered %>%
-#   filter(word %in% c("planet", "Earth", "Desert", "Asteroid")) %>% 
-#   ggplot (aes(x= word, y = n)) + geom_col(fill = 'lightblue') +
-#   theme_bw()
+# =------------ Working from here:
 
-# =-----------
+hike_data <- readr::read_rds('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-11-24/hike_data.rds')
+hike_data$region <- as.factor(word(hike_data$location, 1, sep = " -- "))
+hike_data$length_num <- as.numeric(sapply(strsplit(hike_data$length, " "), "[[", 1))
+
+
+plot_df <- hike_data %>%
+  group_by(region) %>%
+  summarise(sum_length = sum(length_num),
+    mean_gain = mean(as.numeric(gain)),n = n()) %>%
+  mutate(mean_gain = round(mean_gain, digits = 0))
+
+# Basic radar chart
+plt <- ggplot(plot_df) +
+  # Make custom panel grid
+  geom_hline(aes(yintercept = y), data.frame(y = c(0:3) * 1000),color = "lightgrey") + 
+  # Add bars to represent the cumulative track lengths
+  # str_wrap(region, 5) wraps the text so each line has at most 5 characters
+  # (but it doesn't break long words!)
+  geom_col(
+    aes(x = reorder(str_wrap(region, 5), sum_length), y = sum_length,
+      fill = n), position = "dodge2", show.legend = TRUE, alpha = .9) +
+  # Add dots to represent the mean gain
+  geom_point(
+    aes(x = reorder(str_wrap(region, 5),sum_length),y = mean_gain),
+    size = 3,color = "gray12") +
+  # Lollipop shaft for mean gain per region
+  geom_segment(aes(x = reorder(str_wrap(region, 5), sum_length),
+      y = 0, xend = reorder(str_wrap(region, 5), sum_length), yend = 3000),
+    linetype = "dashed", color = "gray12") + 
+  # Make it circular!
+  coord_polar()
+
+plt
+
+# Add annotations and legend
+
+plt <- plt +
+  # Annotate the bars and the lollipops so the reader understands the scaling
+  annotate(x = 11, y = 1300, label = "Mean Elevation Gain\n[FASL]",
+    geom = "text", angle = -67.5,color = "gray12", size = 2.5,
+    family = "Bell MT") +
+  annotate(x = 11, y = 3150, label = "Cummulative Length [FT]",
+    geom = "text", angle = 23, color = "gray12", size = 2.5,
+    family = "Bell MT") +
+  # Annotate custom scale inside plot
+  annotate(x = 11.7, y = 1100, label = "1000", geom = "text", 
+    color = "gray12", family = "Bell MT") +
+  annotate( x = 11.7, y = 2100, label = "2000", 
+    geom = "text", color = "gray12", family = "Bell MT") +
+  annotate(x = 11.7, y =3100, label = "3000", 
+    geom = "text", color = "gray12", family = "Bell MT") +
+  # Scale y axis so bars don't start in the center
+  scale_y_continuous(limits = c(-1500, 3500),
+    expand = c(0, 0), breaks = c(0, 1000, 2000, 3000)) + 
+  # New fill and legend title for number of tracks per region
+  scale_fill_gradientn(
+    "Amount of Tracks",
+    colours = c( "#6C5B7B","#C06C84","#F67280","#F8B195") ) +
+  # Make the guide for the fill discrete
+  guides( fill = guide_colorsteps(
+      barwidth = 15, barheight = .5, title.position = "top", title.hjust = .5)) +
+  theme(
+    # Remove axis ticks and text
+    axis.title = element_blank(), axis.ticks = element_blank(),
+    axis.text.y = element_blank(),
+    # Use gray text for the region names
+    axis.text.x = element_text(color = "gray12", size = 12),
+    # Move the legend to the bottom
+    legend.position = "bottom",
+  )
+
+plt
+
+# Final chart
+plt <- plt + 
+  # Add labels
+  labs(
+    title = "\nHiking Locations in Washington",
+    subtitle = paste(
+      "\nThis Visualisation shows the cummulative length of tracks,",
+      "the amount of tracks and the mean gain in elevation per location.\n",
+      "If you are an experienced hiker, you might want to go",
+      "to the North Cascades since there are a lot of tracks,",
+      "higher elevations and total length to overcome.",
+      sep = "\n"
+    ),
+    caption = "\n\nData Visualisation by Tobias Stalder\ntobias-stalder.netlify.app\nSource: TidyX Crew (Ellis Hughes, Patrick Ward)\nLink to Data: github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-11-24/readme.md") +
+  # Customize general theme
+  theme(
+    # Set default color and font family for the text
+    text = element_text(color = "gray12", family = "Bell MT"),
+    # Customize the text in the title, subtitle, and caption
+    plot.title = element_text(face = "bold", size = 25, hjust = 0.05),
+    plot.subtitle = element_text(size = 14, hjust = 0.05),
+    plot.caption = element_text(size = 10, hjust = .5),
+    # Make the background white and remove extra grid lines
+    panel.background = element_rect(fill = "white", color = "white"),
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+# Use `ggsave("plot.png", plt,width=9, height=12.6)` to save it as in the output
+plt
 
