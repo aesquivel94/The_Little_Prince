@@ -258,67 +258,51 @@ ggsave("C:/Users/dria-/OneDrive/Escritorio/WorldCloud_s.png", plot = pl)
 
 # =------------ Working from here:
 
-hike_data <- readr::read_rds('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-11-24/hike_data.rds')
-hike_data$region <- as.factor(word(hike_data$location, 1, sep = " -- "))
-hike_data$length_num <- as.numeric(sapply(strsplit(hike_data$length, " "), "[[", 1))
+plot_df <- tidy_lp %>% 
+  inner_join(get_sentiments("nrc")) %>%
+  # count(sentiment, sort = TRUE) %>% 
+  # mutate(sentiment = reorder(sentiment, n)) 
+  group_by(sentiment) %>%
+  count(sentiment, sort = TRUE)
 
 
-plot_df <- hike_data %>%
-  group_by(region) %>%
-  summarise(sum_length = sum(length_num),
-    mean_gain = mean(as.numeric(gain)),n = n()) %>%
-  mutate(mean_gain = round(mean_gain, digits = 0))
 
 # Basic radar chart
 plt <- ggplot(plot_df) +
   # Make custom panel grid
-  geom_hline(aes(yintercept = y), data.frame(y = c(0:3) * 1000),color = "lightgrey") + 
+  geom_hline(aes(yintercept = y), data.frame(y = c(0:1) * 100),color = "lightgrey") + 
   # Add bars to represent the cumulative track lengths
   # str_wrap(region, 5) wraps the text so each line has at most 5 characters
   # (but it doesn't break long words!)
   geom_col(
-    aes(x = reorder(str_wrap(region, 5), sum_length), y = sum_length,
-      fill = n), position = "dodge2", show.legend = TRUE, alpha = .9) +
+    aes(x = reorder(str_wrap(sentiment, 5), n), y = n, fill = sentiment
+        ), position = "dodge2", show.legend = TRUE, alpha = .9) +
   # Add dots to represent the mean gain
   geom_point(
-    aes(x = reorder(str_wrap(region, 5),sum_length),y = mean_gain),
+    aes(x = reorder(str_wrap(sentiment, 5),n),y = n),
     size = 3,color = "gray12") +
   # Lollipop shaft for mean gain per region
-  geom_segment(aes(x = reorder(str_wrap(region, 5), sum_length),
-      y = 0, xend = reorder(str_wrap(region, 5), sum_length), yend = 3000),
-    linetype = "dashed", color = "gray12") + 
+  geom_segment(aes(x = reorder(str_wrap(sentiment, 5), n),
+                   y = 0, xend = reorder(str_wrap(sentiment, 5), n), yend = 300),
+               linetype = "dashed", color = "gray12") + 
   # Make it circular!
-  coord_polar()
-
-plt
-
-# Add annotations and legend
+  coord_polar() # + theme_bw()
 
 plt <- plt +
   # Annotate the bars and the lollipops so the reader understands the scaling
-  annotate(x = 11, y = 1300, label = "Mean Elevation Gain\n[FASL]",
-    geom = "text", angle = -67.5,color = "gray12", size = 2.5,
-    family = "Bell MT") +
-  annotate(x = 11, y = 3150, label = "Cummulative Length [FT]",
-    geom = "text", angle = 23, color = "gray12", size = 2.5,
-    family = "Bell MT") +
-  # Annotate custom scale inside plot
-  annotate(x = 11.7, y = 1100, label = "1000", geom = "text", 
-    color = "gray12", family = "Bell MT") +
-  annotate( x = 11.7, y = 2100, label = "2000", 
-    geom = "text", color = "gray12", family = "Bell MT") +
-  annotate(x = 11.7, y =3100, label = "3000", 
-    geom = "text", color = "gray12", family = "Bell MT") +
+  annotate(x = 11, y = 600, label = "Mean Elevation Gain\n[FASL]",
+           geom = "text", angle = -67.5,color = "gray12", size = 2.5,
+           family = "Bell MT") +
   # Scale y axis so bars don't start in the center
-  scale_y_continuous(limits = c(-1500, 3500),
-    expand = c(0, 0), breaks = c(0, 1000, 2000, 3000)) + 
+  # scale_y_continuous(limits = c(-150, 350),
+  #                    expand = c(0, 0), breaks = c(0, 100, 200, 300)) + 
   # New fill and legend title for number of tracks per region
-  scale_fill_gradientn(
-    "Amount of Tracks",
-    colours = c( "#6C5B7B","#C06C84","#F67280","#F8B195") ) +
+  scale_fill_brewer(palette = "Purples") +
+  #   "Amount of Tracks",
+  #   colours = c( "#6C5B7B","#C06C84","#F67280","#F8B195") ) +
   # Make the guide for the fill discrete
-  guides( fill = guide_colorsteps(
-      barwidth = 15, barheight = .5, title.position = "top", title.hjust = .5)) +
+  # guides( fill = guide_colorsteps(
+  #   barwidth = 15, barheight = .5, title.position = "top", title.hjust = .5)) +
   theme(
     # Remove axis ticks and text
     axis.title = element_blank(), axis.ticks = element_blank(),
@@ -329,13 +313,13 @@ plt <- plt +
     legend.position = "bottom",
   )
 
-plt
 
 # Final chart
-plt <- plt + 
+# plt <- 
+plt + 
   # Add labels
   labs(
-    title = "\nHiking Locations in Washington",
+    title = "\n The Little prince feelins",
     subtitle = paste(
       "\nThis Visualisation shows the cummulative length of tracks,",
       "the amount of tracks and the mean gain in elevation per location.\n",
@@ -359,5 +343,5 @@ plt <- plt +
     panel.grid.major.x = element_blank()
   )
 # Use `ggsave("plot.png", plt,width=9, height=12.6)` to save it as in the output
-plt
+
 
