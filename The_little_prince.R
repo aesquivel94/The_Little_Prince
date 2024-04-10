@@ -44,11 +44,8 @@ Little_prince_clean <- Little_prince_clean %>%
   } 
   
 
-# 2. 
-# Little prince filter and create the groups  
-  
-# Maybe i need to replace the boa constrictor word too. 
-# Maybe join Rose and Flowers?
+# 2. Little prince filter and create the groups  
+
 tidy_little_prince <- Little_prince_clean %>%
     tibble(text = .) %>% 
     unnest() %>% 
@@ -83,13 +80,14 @@ tidy_lp <- tidy_little_prince %>%
 
 
 # =----  Most frequent Words. 
-pl <- tidy_lp %>% 
+pl <- tidy_lp %>%
   count(word, sort = TRUE) %>%
   filter(n > 15) %>%
   mutate(word = reorder(word, n)) %>%
-  ggplot(aes(n, word)) + geom_col(fill = '#4CA0DB') + 
+  ggplot(aes(n, word)) + geom_col(fill = 'lightsteelblue3') + 
   labs(y = NULL, x = "Frequency") + 
   theme_bw() +
+  labs() +
   geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
 
 ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_grap.png", plot = pl)
@@ -109,16 +107,17 @@ get_sentiments("nrc")
 # -================================ Work from here
 
 # Sentiment distribution.
-pl <- tidy_lp %>% 
-  inner_join(get_sentiments("nrc")) %>%
-  count(sentiment, sort = TRUE) %>% 
-  mutate(sentiment = reorder(sentiment, n)) %>%
-  ggplot(aes(n, sentiment)) + geom_col(fill = '#4CA0DB') + 
-  labs(y = NULL, x = "Frequency") + 
-  theme_bw() +
-  geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
-
-ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_type.png", plot = pl)
+# pl <-
+# tidy_lp %>% 
+#   inner_join(get_sentiments("nrc")) %>%
+#   count(sentiment, sort = TRUE) %>% 
+#   mutate(sentiment = reorder(sentiment, n)) %>%
+#   ggplot(aes(n, sentiment)) + geom_col(fill = '#4CA0DB') + 
+#   labs(y = NULL, x = "Frequency") + 
+#   theme_bw() +
+#   geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
+# 
+# ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_type.png", plot = pl)
 
 
 # --- Positive or negative words in the story - table.
@@ -137,23 +136,23 @@ bing_word_counts <- tidy_lp %>%
   ungroup()
 
 # Graph of negative and positive words. Spliting by sentiment types. 
-Pos_neg_cont <- bing_word_counts %>%
-  group_by(sentiment) %>%
-  slice_max(n, n = 10) %>% 
-  ungroup() %>%
-  mutate(word = reorder(word, n)) %>%
-  ggplot(aes(n, word, fill = sentiment)) +
-  geom_col(show.legend = FALSE) +
-  scale_fill_brewer(palette = "Blues") + 
-  facet_wrap(~sentiment, scales = "free_y") +
-  labs(x = "Contribution to sentiment", y = NULL) +
-  theme_bw()  +
-  geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
+# Pos_neg_cont <- bing_word_counts %>%
+#   group_by(sentiment) %>%
+#   slice_max(n, n = 10) %>% 
+#   ungroup() %>%
+#   mutate(word = reorder(word, n)) %>%
+#   ggplot(aes(n, word, fill = sentiment)) +
+#   geom_col(show.legend = FALSE) +
+#   scale_fill_brewer(palette = "Blues") + 
+#   facet_wrap(~sentiment, scales = "free_y") +
+#   labs(x = "Contribution to sentiment", y = NULL) +
+#   theme_bw()  +
+#   geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
+# 
+# ggsave("C:/Users/dria-/OneDrive/Escritorio/PN_count.png", plot = Pos_neg_cont)
 
-ggsave("C:/Users/dria-/OneDrive/Escritorio/PN_count.png", plot = Pos_neg_cont)
 
-
-# wordcloud Simple with not sentiments involve. 
+# wordcloud Simple with not sentiments involve.
 tidy_lp %>% anti_join(stop_words) %>%
   count(word) %>% with(wordcloud(word, n, max.words = 50))
 
@@ -169,28 +168,27 @@ pl <- tidy_lp %>%
 
 ggsave("C:/Users/dria-/OneDrive/Escritorio/WorldCloud_s.png", plot = pl)
 
-
-# 2.6 Looking at units beyond just words
-# LP_bigram <- tidy_little_prince %>%
-#   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
-#   filter(!is.na(bigram))
-# LP_bigram %>%  count(bigram, sort = TRUE)
-# bigrams_separated <- LP_bigram %>% separate(bigram, c("word1", "word2"), sep = " ")
-# bigrams_filtered <- bigrams_separated %>%
-#   filter(!word1 %in% stop_words$word) %>% filter(!word2 %in% stop_words$word)
-# # new bigram counts:
-# bigram_counts <- bigrams_filtered %>% count(word1, word2, sort = TRUE)
-# bigrams_united <- bigrams_filtered %>% unite(bigram, word1, word2, sep = " ")
-# # =----
-# bigram_tf_idf <- bigrams_united %>% count(bigram) %>% arrange(desc(n))
-# bigrams_separated <- bigrams_united %>% separate(bigram, c("word1", "word2"), sep = " ")
-# bigrams_filtered <- bigrams_separated %>%
-#     filter(!word1 %in% stop_words$word) %>% filter(!word2 %in% stop_words$word)
-# # new bigram counts:
-# bigram_counts <- bigrams_filtered %>% count(word1, word2, sort = TRUE)
   
 
-  
+
+install.packages("ggwordcloud")
+library(ggwordcloud)
+set.seed(42)
+
+love_words <- tidy_lp  %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) 
+
+wcl <- ggplot(love_words, aes(label = word, size = n,
+    x = sentiment)) +
+  geom_text_wordcloud_area() +
+  scale_size_area(max_size = 15) +
+  scale_x_discrete(breaks = NULL) +
+  theme_minimal()
+
+ggsave("C:/Users/dria-/OneDrive/Escritorio/Int.png", plot = wcl)
+
+
 # =--------------------------------
 # Working from here
 # =--------------------------------
@@ -211,47 +209,30 @@ word_cors <- LP_section_words %>%
   filter(n() >= 20) %>%
   pairwise_cor(word, section, sort = TRUE)  
   
-# word_cors %>%
-#   filter(item1 %in% c("littleprince", "fox", "flower")) %>%
-#   group_by(item1) %>%
-#   slice_max(correlation, n = 6) %>%
-#   ungroup() %>%
-#   mutate(item2 = reorder(item2, correlation)) %>%
-#   ggplot(aes(item2, correlation)) +
-#   geom_bar(stat = "identity", fill = 'lightblue') +
-#   facet_wrap(~ item1, scales = "free") +
-#   coord_flip() + theme_bw()  
-  
-# Correlation graph
-# set.seed(2016)
-# 
-# word_cors %>%
-#   filter(correlation > 0.1) %>%
-#   influential::graph_from_data_frame() %>%
-#   ggraph(layout = "fr") +
-#   geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
-#   geom_node_point(color = "lightblue", size = 5) +
-#   geom_node_text(aes(label = name), repel = TRUE) +
-#   theme_void()  
-  
 
 # 5.1 Tidying a document-term matrix
 
 ap_sentiments <- tidy_lp %>% 
   inner_join(get_sentiments("bing"), by = 'word')
 
-pl <- ap_sentiments %>% mutate(term = word) %>% 
+Freq_np <- ap_sentiments %>% mutate(term = word) %>%
   count(sentiment, term) %>%
   filter(n >= 5) %>%
   mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
   mutate(term = reorder(term, n)) %>%
   ggplot(aes(n, term, fill = sentiment)) +
   geom_col() +
-  scale_fill_brewer(palette = "Accent") + 
+  scale_fill_manual(values=c("lightcoral","lightsteelblue3"),
+                    labels = paste0(toupper(substr(ap_sentiments$sentiment, 1, 1)), 
+                                    substr(ap_sentiments$sentiment, 2, 
+                                           nchar(ap_sentiments$sentiment))))+
+  scale_y_discrete(labels = paste0(toupper(substr(ap_sentiments$word, 1, 1)), 
+                                   substr(ap_sentiments$word, 2, 
+                                          nchar(ap_sentiments$word)))) +
   labs(x = "Frequency", y = NULL) + theme_bw() +
   geom_text(aes(x = n, label = n, angle = 0, hjust = 0, check_overlap = T))
 
-ggsave("C:/Users/dria-/OneDrive/Escritorio/WorldCloud_s.png", plot = pl)
+ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_np.png", plot = Freq_np)
 
 
 
@@ -280,27 +261,26 @@ plt <- ggplot(plot_df) +
                linetype = "dashed", color = "gray12") + 
   # Make it circular!
   coord_polar(start = 0)  +
-  theme_minimal()
- 
+  theme_minimal() +
+  scale_x_discrete(labels = paste0(toupper(substr(plot_df$sentiment, 1, 1)), 
+                                   substr(plot_df$sentiment, 2, 
+                                          nchar(plot_df$sentiment))) )
   
-  
-plt <-  plt +
+
+ plt <-  plt +
   # New fill and legend title for number of tracks per region
-  scale_fill_brewer(palette = "Purples") #+
+  scale_fill_brewer(palette = "Spectral", name = "Sentiment", 
+                    labels = paste0(toupper(substr(plot_df$sentiment, 1, 1)), 
+                                    substr(plot_df$sentiment, 2, 
+                                           nchar(plot_df$sentiment)))) +
   #   "Amount of Tracks",
-  theme(
-    # Remove axis ticks and text
+  theme( # Remove axis ticks and text
     axis.title = element_blank(), axis.ticks = element_blank(),
     axis.text.y = element_blank(),
     # Use gray text for the region names
-    axis.text.x = element_text(color = "gray12", size = 12)  )
-
-
-# Final chart
-plt <- plt +
-  # Add labels
-  labs(
-    title = "\nEmotional Journey Through 'The Little Prince': \nA Sentiment Analysis Exploration",
+    axis.text.x = element_text(color = "gray12", size = 12)  ) +
+   labs( plot.title=element_text(hjust=0.5, vjust=0.1, face='bold', colour="blue"),
+    title = "\nEmotional Journey Through 'The Little Prince': \nA Sentiment Analysis Exploration\n",
     subtitle = paste(
       "This visualization depicts the predominant emotional landscape of 'The Little Prince',",
       "highlighting the frequency of various sentiments throughout the narrative.\n",
@@ -314,12 +294,10 @@ plt <- plt +
     # Set default color and font family for the text
     text = element_text(color = "gray12", family = "Bell MT"),
     # Make the background white and remove extra grid lines
-    panel.background = element_rect(fill = "white", color = "white")
-  ) 
+    panel.background = element_rect(fill = "white", color = "white") )  
 
-# Use `ggsave("plot.png", plt,width=9, height=12.6)` to save it as in the output
-
-plt +
-  scale_x_discrete(labels = paste0(toupper(substr(plot_df$sentiment, 1, 1)), substr(plot_df$sentiment, 2, nchar(plot_df$sentiment))) )
+ plt
+ 
+ ggsave("C:/Users/dria-/OneDrive/Escritorio/circular.jpg", plt, width=8, height=8.5)
 
                    
