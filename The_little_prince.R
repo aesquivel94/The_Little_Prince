@@ -179,14 +179,18 @@ love_words <- tidy_lp  %>%
   inner_join(get_sentiments("bing")) %>%
   count(word, sentiment, sort = TRUE) 
 
-wcl <- ggplot(love_words, aes(label = word, size = n,
-    x = sentiment)) +
-  geom_text_wordcloud_area() +
-  scale_size_area(max_size = 15) +
-  scale_x_discrete(breaks = NULL) +
-  theme_minimal()
+wcl <- ggplot(love_words, aes(label = word, size = n, color = sentiment)) +
+  geom_text_wordcloud_area(
+    mask = png::readPNG(system.file("extdata/hearth.png",
+                                    package = "ggwordcloud", mustWork = TRUE
+    )),
+    rm_outside = TRUE
+  )  +
+  scale_size_area(max_size = 40) +
+  theme_minimal() +
+  scale_color_manual(values=c("darkred", "red"))
 
-ggsave("C:/Users/dria-/OneDrive/Escritorio/Int.png", plot = wcl)
+ggsave("C:/Users/dria-/OneDrive/Escritorio/Int.jpg", plot = wcl)
 
 
 # =--------------------------------
