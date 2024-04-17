@@ -1,4 +1,5 @@
-
+# Author: Alejandra Esquivel
+# Date: 04/16/2024
 # Loading Packages 
 
 # R options
@@ -6,7 +7,7 @@ options(warn = -1, scipen = 999)
 
 # Load libraries
 suppressMessages(if(!require("pacman")) install.packages("pacman"))
-suppressMessages(pacman::p_load(purrr, pdftools, wordcloud, dplyr, reshape2, stringr, textdata, scales, tidytext, tidyr, ggplot2, ggraph, widyr))
+suppressMessages(pacman::p_load(purrr, pdftools, wordcloud, dplyr, reshape2, stringr, textdata, scales, tidytext, tidyr, ggplot2, ggraph, widyr, ggwordcloud))
 
 
 # 1. Reading and pre-procesing data: 
@@ -171,8 +172,6 @@ ggsave("C:/Users/dria-/OneDrive/Escritorio/WorldCloud_s.png", plot = pl)
   
 
 
-install.packages("ggwordcloud")
-library(ggwordcloud)
 set.seed(42)
 
 love_words <- tidy_lp  %>%
@@ -239,14 +238,10 @@ Freq_np <- ap_sentiments %>% mutate(term = word) %>%
 ggsave("C:/Users/dria-/OneDrive/Escritorio/Freq_np.png", plot = Freq_np)
 
 
-
-
-# =------------ Working from here:
+# =----- Radar sentiments chat
 
 plot_df <- tidy_lp %>% 
   inner_join(get_sentiments("nrc")) %>%
-  # count(sentiment, sort = TRUE) %>% 
-  # mutate(sentiment = reorder(sentiment, n)) 
   group_by(sentiment) %>%
   count(sentiment, sort = TRUE)
 
@@ -298,7 +293,8 @@ plt <- ggplot(plot_df) +
     # Set default color and font family for the text
     text = element_text(color = "gray12", family = "Bell MT"),
     # Make the background white and remove extra grid lines
-    panel.background = element_rect(fill = "white", color = "white") )  
+    panel.background = element_rect(fill = "white", color = "white") )  +
+  guides(fill="none")
 
  plt
  
